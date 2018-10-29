@@ -7,3 +7,5 @@ depinst
 depsrc
 target
 libmysnark.so
+build
+.vscode
