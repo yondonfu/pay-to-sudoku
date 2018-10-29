@@ -1,5 +1,8 @@
 #include "gadget.hpp"
-#include "sha256.h"
+
+extern "C" {
+    #include "sha256.h"
+}
 
 using namespace std;
 
