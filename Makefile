@@ -1,23 +1,35 @@
-OPTFLAGS = -march=native -mtune=native -O2
-CXXFLAGS += -g -Wall -Wextra -Wno-unused-parameter -std=c++11 -fPIC -Wno-unused-variable
-CXXFLAGS += -I $(DEPINST)/include -I $(DEPINST)/include/libsnark -DUSE_ASM -DCURVE_ALT_BN128
-LDFLAGS += -flto
+ROOT_DIR := $(shell dirname $(realpath $(MAKEFILE_LIST)))
 
-DEPSRC=depsrc
-DEPINST=depinst
+ifeq ($(OS),Windows_NT)
+	detected_OS := Windows
+	DLL_EXT := .dll
+else
+	detected_OS := $(shell uname -s)
+	ifeq ($(detected_OS),Darwin)
+		DLL_EXT := .dylib
+		export LD_LIBRARY_PATH := /usr/local/opt/openssl/lib:"$(LD_LIBRARY_PATH)"
+		export CPATH := /usr/local/opt/openssl/include:"$(CPATH)"
+		export PKG_CONFIG_PATH := /usr/local/opt/openssl/lib/pkgconfig:"$(PKG_CONFIG_PATH)"
+	else
+		DLL_EXT := .so
+	endif
+endif
 
-LDLIBS += -L $(DEPINST)/lib -Wl,-rpath $(DEPINST)/lib -L . -lsnark -lgmpxx -lgmp
-LDLIBS += -lboost_system
+all: build/src/libmysnark$(DLL_EXT)
 
-all:
-	$(CXX) -o snark/lib.o snark/lib.cpp -c $(CXXFLAGS)
-	$(CXX) -o snark/sha256.o snark/sha256.c -c $(CXXFLAGS)
-	$(CXX) -shared -o libmysnark.so snark/lib.o snark/sha256.o $(CXXFLAGS) $(LDFLAGS) $(LDLIBS)
-	mkdir -p target/debug
-	mkdir -p target/release
-	cp libmysnark.so target/debug
-	cp libmysnark.so target/release
+build:
+	mkdir -p build
+
+build/src/libmysnark$(DLL_EXT): build/Makefile
+	make -C build
+	cp build/snark/libmysnark$(DLL_EXT) target/debug/deps
+	cp build/snark/libmysnark$(DLL_EXT) target/release/deps
+
+build/Makefile: build CMakeLists.txt
+	cd build && cmake ..
+
+depends/libsnark/CMakeLists.txt:
+	git submodule update --init --recursive
 
 clean:
-	$(RM) snark/sha256.o
-	$(RM) snark/lib.o libmysnark.so target/debug/libmysnark.so target/release/libmysnark.so
+	rm -rf build target/debug/deps/libmysnark$(DLL_EXT) target/release/deps/libmysnark$(DLL_EXT)
